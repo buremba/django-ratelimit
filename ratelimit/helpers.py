@@ -38,7 +38,7 @@ def _split_rate(rate):
 
 
 def _get_keys(request, ip=True, field=None, keyfuncs=None):
-    return _get_keys_raw(ip = request.META['REMOTE_ADDR'] if ip is True else False, getattr(request, request.method), field, keyfuncs)
+    return _get_keys_raw(request.META['REMOTE_ADDR'] if ip is True else False, getattr(request, request.method), field, keyfuncs)
 
 def _get_keys_raw(ip=None, method='POST', field=None, keyfuncs=None):
     keys = []
