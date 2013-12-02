@@ -70,11 +70,11 @@ def _incr(cache, keys, timeout=60):
     cache.set_many(counts, timeout=timeout)
     return counts
 
-def test_ratelimited(ip=True, method='POST', field=None, rate='5/m'):
+def test_ratelimited(ip=False, method='POST', field=None, rate='5/m'):
     cache = getattr(settings, 'RATELIMIT_USE_CACHE', 'default')
     cache = get_cache(cache)
     count, period = _split_rate(rate)
-    keys = _get_keys_raw(request.META['REMOTE_ADDR'] if ip else False, method, field)
+    keys = _get_keys_raw(ip, method, field)
     return any([c > count for c in cache.get_many(keys).values()])
 
 
