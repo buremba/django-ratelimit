@@ -38,21 +38,24 @@ def _split_rate(rate):
 
 
 def _get_keys(request, ip=True, field=None, keyfuncs=None):
+    return _get_keys_raw(ip = request.META['REMOTE_ADDR'] if ip is True else False, getattr(request, request.method), field, keyfuncs)
+
+def _get_keys_raw(ip=None, method='POST', field=None, keyfuncs=None):
     keys = []
     if ip:
-        keys.append('ip:' + request.META['REMOTE_ADDR'])
+        keys.append('ip:' + ip)
     if field is not None:
         if not isinstance(field, (list, tuple)):
             field = [field]
         for f in field:
-            val = getattr(request, request.method).get(f, '').encode('utf-8')
+            val = method.get(f, '').encode('utf-8')
             val = hashlib.sha1(val).hexdigest()
             keys.append(u'field:%s:%s' % (f, val))
     if keyfuncs:
         if not isinstance(keyfuncs, (list, tuple)):
             keyfuncs = [keyfuncs]
         for k in keyfuncs:
-            keys.append(k(request))
+            keys.append(k(ip, method, field))
     return [CACHE_PREFIX + k for k in keys]
 
 def _incr(cache, keys, timeout=60):
@@ -67,18 +70,18 @@ def _incr(cache, keys, timeout=60):
     cache.set_many(counts, timeout=timeout)
     return counts
 
+def test_ratelimited(ip=None, method='POST', field=None):
+    keys = _get_keys_raw(ip, method, field)
+    return any([c > count for c in cache.get_many(keys).values()])
+
 
 def is_ratelimited(request, increment=False, ip=True, method=['POST'],
-                   field=None, rate='5/m', keys=None, simulate = False):
+                   field=None, rate='5/m', keys=None):
     count, period = _split_rate(rate)
     cache = getattr(settings, 'RATELIMIT_USE_CACHE', 'default')
     cache = get_cache(cache)
 
     request.limited = getattr(request, 'limited', False)
-    
-    if simulate:
-        keys = _get_keys(request, ip, field, keys)
-        return any([c > count for c in cache.get_many(keys).values()])
         
     if (not request.limited and increment and RATELIMIT_ENABLE and
             _method_match(request, method)):
