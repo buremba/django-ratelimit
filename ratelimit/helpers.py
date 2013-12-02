@@ -55,7 +55,6 @@ def _get_keys(request, ip=True, field=None, keyfuncs=None):
             keys.append(k(request))
     return [CACHE_PREFIX + k for k in keys]
 
-
 def _incr(cache, keys, timeout=60):
     # Yes, this is a race condition, but memcached.incr doesn't reset the
     # timeout.
@@ -70,12 +69,17 @@ def _incr(cache, keys, timeout=60):
 
 
 def is_ratelimited(request, increment=False, ip=True, method=['POST'],
-                   field=None, rate='5/m', keys=None):
+                   field=None, rate='5/m', keys=None, simulate = False):
     count, period = _split_rate(rate)
     cache = getattr(settings, 'RATELIMIT_USE_CACHE', 'default')
     cache = get_cache(cache)
 
     request.limited = getattr(request, 'limited', False)
+    
+    if simulate:
+        keys = _get_keys(request, ip, field, keys)
+        return any([c > count for c in cache.get_many(keys).values()])
+        
     if (not request.limited and increment and RATELIMIT_ENABLE and
             _method_match(request, method)):
         _keys = _get_keys(request, ip, field, keys)
